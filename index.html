@@ -21,12 +21,54 @@ c2FmZQ. If not, see <https://www.gnu.org/licenses/>.
   <title>c2FmZQ</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
   <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <meta name="description" content="Open source project that facilitates the secure storage and sharing of files, including but not limited to photos and videos." />
+  <meta name="keywords" content="photos,security,fuse,privacy,encryption,pwa,progressive-web-app,storage,sharing,self-hosted,videos,fuse-filesystem,end-to-end-encryption,zero-trust" />
   <link rel="icon" type="image/png" href="pwa/c2.png" />
+  <style>
+html {
+  margin: 0;
+  height: 100vh;
+}
+body {
+  font-family: monospace;
+  font-size: 150%;
+  background-color: rgb(240, 240, 240);
+}
+a {
+  color: black;
+}
+a:hover {
+  color: gray;
+}
+#main {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  padding: 10px;
+  border: 1px solid black;
+  box-shadow: 5px 5px 5px black;
+  width: 80vw;
+  max-height: 80vh;
+  overflow-y: scroll;
+  background-color: white;
+}
+  </style>
 </head>
 <body>
+<div id="main">
+<p><strong>c2FmZQ</strong> is an open source project that facilitates the secure storage and sharing of files, including
+but not limited to photos and videos.</p>
+<p>This project does not host any user data. Users are expected to store their data on their own servers.</p>
+<p>Please refer to the <a href="https://github.com/c2FmZQ/c2FmZQ/blob/main/README.md">README</a>.</p>
+
+<p>Links:</p>
 <ul>
-<li><a href="https://github.com/c2FmZQ/">GitHub</a></li>
-<li><a href="/pwa/">PWA</a> (experimental)</li>
+<li><a href="https://github.com/c2FmZQ/c2FmZQ">GO server and command-line client application</a></li>
+<li><a href="https://github.com/c2FmZQ/stingle-photos-for-self-hosted-server">Stingle Photos for self-hosted server</a> (Android App)</li>
+<li><a href="pwa/">Progressive Web App (PWA)</a> (experimental)</li>
+<li><a href="https://github.com/c2FmZQ/c2FmZQ.github.io">This web site's repo</a></li>
 </ul>
+</div>
 </body>
 </html>
