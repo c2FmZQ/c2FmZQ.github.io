@@ -404,6 +404,7 @@ a {
 #backup-phrase-content {
   padding: 2em;
   overflow-y: scroll;
+  min-width: 75vw;
   max-width: 90vw;
   max-height: 90vh;
 }
@@ -471,6 +472,15 @@ input[type=checkbox] {
   align-items: start;
   row-gap: 0.5em;
   min-width: 75vw;
+}
+#preferences-notifications-choices {
+  display: grid;
+  grid-template-columns: 1fr 9fr;
+  align-items: start;
+  row-gap: 0.5em;
+}
+#preferences-notifications-checkbox {
+  justify-self: center;
 }
 .photo-editor-popup {
   width: 90vw;
