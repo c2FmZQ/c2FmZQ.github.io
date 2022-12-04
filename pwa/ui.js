@@ -75,9 +75,6 @@ class UI {
     this.backupPhraseInput_ = document.querySelector('#backup-phrase-input');
     this.backupKeysCheckbox_ = document.querySelector('#backup-keys-checkbox');
     this.backupKeysCheckboxLabel_ = document.querySelector('#backup-keys-checkbox-label');
-    this.otpInputLabel_ = document.querySelector('#otp-input-label');
-    this.otpInput_ = document.querySelector('#otp-input');
-    this.otpInput_.placeholder = _T('optional');
     this.serverInput_ = document.querySelector('#server-input');
     this.serverInput_.placeholder = _T('server-placeholder');
     this.loginButton_ = document.querySelector('#login-button');
@@ -94,7 +91,6 @@ class UI {
     document.querySelector('label[for=password2]').textContent = _T('form-confirm-password');
     document.querySelector('label[for=backup-phrase]').textContent = _T('form-backup-phrase');
     document.querySelector('label[for=backup-keys-checkbox]').textContent = _T('form-backup-keys?');
-    document.querySelector('label[for=code]').textContent = _T('form-otp-code');
     document.querySelector('label[for=server]').textContent = _T('form-server');
     document.querySelector('#login-button').textContent = _T('login');
 
@@ -114,13 +110,16 @@ class UI {
       }
     });
     this.skipPassphraseButton_.addEventListener('click', () => {
-      if (!window.confirm(_T('skip-passphrase-warning'))) {
-        return;
-      }
-      const passphrase = btoa(String.fromCharCode(...window.crypto.getRandomValues(new Uint8Array(64))));
-      localStorage.setItem('_', passphrase);
-      this.passphraseInput_.value = passphrase;
-      this.setPassphrase_();
+      this.prompt({message: _T('skip-passphrase-warning')})
+      .then(() => {
+        const passphrase = btoa(String.fromCharCode(...window.crypto.getRandomValues(new Uint8Array(64))));
+        localStorage.setItem('_', passphrase);
+        this.passphraseInput_.value = passphrase;
+        this.setPassphrase_();
+      })
+      .catch(err => {
+        console.log(err);
+      });
     });
     this.resetDbButton_.addEventListener('click', main.resetServiceWorker.bind(main));
   }
@@ -140,14 +139,20 @@ class UI {
   }
 
   promptForBackupPhrase_() {
-    return main.sendRPC('restoreSecretKey', window.prompt(_T('enter-backup-phrase')))
+    return ui.prompt({
+      message: _T('enter-backup-phrase'),
+      getValue: true,
+    })
+    .then(v => {
+      return main.sendRPC('restoreSecretKey', v);
+    })
     .then(() => {
       this.refresh_();
     })
     .catch(err => {
       console.log('restoreSecretKey failed', err);
       this.popupMessage(err);
-      window.setTimeout(this.promptForBackupPhrase_.bind(this), 10000);
+      window.setTimeout(this.promptForBackupPhrase_.bind(this), 2000);
     });
   }
 
@@ -180,6 +185,7 @@ class UI {
   }
 
   serverHash_(n) {
+    this.serverUrl_ = n;
     let e = document.querySelector('#server-fingerprint');
     if (!e) {
       e = document.createElement('div');
@@ -254,7 +260,7 @@ class UI {
       if (e.key === 'Enter') {
         switch(this.selectedTab_) {
           case 'login':
-            this.otpInput_.focus();
+            this.login_();
             break;
           case 'register':
           case 'recover':
@@ -275,11 +281,6 @@ class UI {
             this.backupPhraseInput_.focus();
             break;
         }
-      }
-    });
-    this.otpInput_.addEventListener('keyup', e => {
-      if (e.key === 'Enter') {
-        this.login_();
       }
     });
 
@@ -316,8 +317,6 @@ class UI {
           this.backupPhraseInput_.style.display = 'none';
           this.backupKeysCheckbox_.style.display = 'none';
           this.backupKeysCheckboxLabel_.style.display = 'none';
-          this.otpInputLabel_.style.display = '';
-          this.otpInput_.style.display = '';
           this.loginButton_.textContent = _T('login');
           this.title_.textContent = _T('login');
         },
@@ -334,8 +333,6 @@ class UI {
           this.backupPhraseInput_.style.display = 'none';
           this.backupKeysCheckbox_.style.display = '';
           this.backupKeysCheckboxLabel_.style.display = '';
-          this.otpInputLabel_.style.display = 'none';
-          this.otpInput_.style.display = 'none';
           this.loginButton_.textContent = _T('create-account');
           this.title_.textContent = _T('register');
         },
@@ -352,8 +349,6 @@ class UI {
           this.backupPhraseInput_.style.display = '';
           this.backupKeysCheckbox_.style.display = '';
           this.backupKeysCheckboxLabel_.style.display = '';
-          this.otpInputLabel_.style.display = 'none';
-          this.otpInput_.style.display = 'none';
           this.loginButton_.textContent = _T('recover-account');
           this.title_.textContent = _T('recover-account');
         },
@@ -365,9 +360,11 @@ class UI {
     }
 
     main.sendRPC('isLoggedIn')
-    .then(({account, otpEnabled, isAdmin, needKey}) => {
+    .then(({account, mfaEnabled, passKey, otpEnabled, isAdmin, needKey}) => {
       if (account !== '') {
         this.accountEmail_ = account;
+        this.mfaEnabled_ = mfaEnabled;
+        this.passKey_ = passKey;
         this.otpEnabled_ = otpEnabled;
         this.isAdmin_ = isAdmin;
         this.loggedInAccount_.textContent = account;
@@ -380,7 +377,7 @@ class UI {
             this.showQuota_();
           })
           .catch(this.showError_.bind(this))
-          .finally(this.refreshGallery_.bind(this));
+          .finally(this.refreshGallery_.bind(this, true));
       } else {
         this.showLoggedOut_();
       }
@@ -542,25 +539,26 @@ class UI {
     this.passwordInput_.disabled = true;
     this.passwordInput2_.disabled = true;
     this.backupPhraseInput_.value = this.backupPhraseInput_.value
-      .replace(/[\t\r\n ]+/g, ' ')
+      .replaceAll(/[\t\r\n ]+/g, ' ')
       .replace(/^ */, '')
       .replace(/ *$/, '');
     this.backupPhraseInput_.disabled = true;
     this.backupKeysCheckbox_.disabled = true;
-    this.otpInput_.disabled = true;
     this.serverInput_.disabled = true;
     const args = {
       email: this.emailInput_.value,
       password: this.passwordInput_.value,
       enableBackup: this.backupKeysCheckbox_.checked,
       backupPhrase: this.backupPhraseInput_.value,
-      otpCode: this.otpInput_.value,
       server: SAMEORIGIN ? undefined : this.serverInput_.value,
       enableNotifications: this.enableNotifications,
     };
+    this.backupPhraseInput_.value = this.backupPhraseInput_.value.replaceAll(/./g, 'X');
     return main.sendRPC(this.tabs_[this.selectedTab_].rpc, args)
-    .then(({otpEnabled, isAdmin, needKey}) => {
+    .then(({mfaEnabled, passKey, otpEnabled, isAdmin, needKey}) => {
       this.accountEmail_ = this.emailInput_.value;
+      this.mfaEnabled_ = mfaEnabled;
+      this.passKey_ = passKey;
       this.otpEnabled_ = otpEnabled;
       this.isAdmin_ = isAdmin;
       document.querySelector('#loggedin-account').textContent = this.emailInput_.value;
@@ -574,10 +572,11 @@ class UI {
       return main.sendRPC('getUpdates')
         .then(() => {
           this.showQuota_();
-          this.refreshGallery_();
+          this.refreshGallery_(true);
         });
     })
     .catch(e => {
+      this.backupPhraseInput_.value = args.backupPhrase;
       if (e === 'nok') {
         switch(this.selectedTab_) {
           case 'login':
@@ -602,7 +601,6 @@ class UI {
       this.passwordInput2_.disabled = false;
       this.backupPhraseInput_.disabled = false;
       this.backupKeysCheckbox_.disabled = false;
-      this.otpInput_.disabled = false;
       this.serverInput_.disabled = false;
     });
   }
@@ -617,7 +615,7 @@ class UI {
   async refresh_() {
     this.refreshButton_.disabled = true;
     return main.sendRPC('getUpdates')
-      .then(this.refreshGallery_.bind(this))
+      .then(this.refreshGallery_.bind(this, false))
       .catch(this.showError_.bind(this))
       .finally(() => {
         this.refreshButton_.disabled = false;
@@ -904,16 +902,16 @@ class UI {
         if (this.galleryState_.collection !== 'trash') {
           params.items.push({
             text: _T('move-to-trash'),
-            onclick: () => confirm(_T('confirm-move-to-trash')) && this.moveFiles_({file: f.file, collection: f.collection, move: true}, 'trash'),
+            onclick: () => this.prompt({message: _T('confirm-move-to-trash')}).then(() => this.moveFiles_({file: f.file, collection: f.collection, move: true}, 'trash')),
           });
         } else {
           params.items.push({
             text: _T('move-to-gallery'),
-            onclick: () => confirm(_T('confirm-move-to-gallery')) && this.moveFiles_({file: f.file, collection: f.collection, move: true}, 'gallery'),
+            onclick: () => this.prompt({message: _T('confirm-move-to-gallery')}).then(() => this.moveFiles_({file: f.file, collection: f.collection, move: true}, 'gallery')),
           });
           params.items.push({
             text: _T('delete-perm'),
-            onclick: () => confirm(_T('confirm-delete-perm')) && this.deleteFiles_({file: f.file, collection: f.collection}),
+            onclick: () => this.prompt({message: _T('confirm-delete-perm')}).then(() => this.deleteFiles_({file: f.file, collection: f.collection})),
           });
         }
         if (f.collection !== 'trash' && f.collection !== 'gallery') {
@@ -1173,23 +1171,17 @@ class UI {
   }
 
   async leaveCollection_(collection) {
-    if (!window.confirm(_T('confirm-leave'))) {
-      return;
-    }
-    main.sendRPC('leaveCollection', collection)
-    .then(() => {
-      this.refresh_();
-    })
+    this.prompt({message: _T('confirm-leave')})
+    .then(() => main.sendRPC('leaveCollection', collection))
+    .then(() => this.refresh_())
     .catch(e => {
       this.showError_(e);
     });
   }
 
   async deleteCollection_(collection) {
-    if (!window.confirm(_T('confirm-delete'))) {
-      return;
-    }
-    main.sendRPC('deleteCollection', collection)
+    this.prompt({message: _T('confirm-delete')})
+    .then(() => main.sendRPC('deleteCollection', collection))
     .then(() => {
       if (this.galleryState_.collection === collection) {
         this.switchView({collection: 'gallery'});
@@ -1279,6 +1271,142 @@ class UI {
     return menu;
   }
 
+  setGlobalEventHandlers(handlers) {
+    if (!this.windowHandlers) {
+      this.windowHandlers = [];
+    }
+    const add = h => {
+      h.forEach(args => document.addEventListener(...args));
+    };
+    const remove = h => {
+      h.forEach(args => document.removeEventListener(...args));
+    };
+    if (handlers) {
+      // Add events.
+      if (this.windowHandlers.length) {
+        remove(this.windowHandlers[0]);
+      }
+      this.windowHandlers.unshift(handlers);
+      add(handlers);
+    } else {
+      // Remove events.
+      remove(this.windowHandlers.shift());
+      if (this.windowHandlers.length) {
+        add(this.windowHandlers[0]);
+      }
+    }
+  }
+
+  async prompt(params) {
+    const win = document.createElement('div');
+    win.className = 'prompt-div';
+    const bg = document.createElement('div');
+    bg.className = 'prompt-bg';
+
+    const text = document.createElement('div');
+    text.className = 'prompt-text';
+    text.textContent = params.message;
+    win.appendChild(text);
+
+    let input;
+    if (params.getValue) {
+      input = document.createElement('textarea');
+      input.className = 'prompt-input';
+      if (params.defaultValue) {
+        input.value = params.defaultValue;
+      }
+      win.appendChild(input);
+    }
+
+    const buttons = document.createElement('div');
+    buttons.className = 'prompt-button-row';
+    const conf = document.createElement('button');
+    conf.className = 'prompt-confirm-button';
+    conf.textContent = params.confirmText || _T('confirm');
+    buttons.appendChild(conf);
+    const canc = document.createElement('button');
+    canc.className = 'prompt-cancel-button';
+    canc.textContent = params.cancelText || _T('cancel');
+    buttons.appendChild(canc);
+    win.appendChild(buttons);
+
+    const body = document.querySelector('body');
+    body.appendChild(bg);
+    body.appendChild(win);
+    if (input) input.focus();
+
+    const waiting = body.classList.contains('waiting');
+    if (waiting) {
+      body.classList.remove('waiting');
+    }
+    const p = new Promise((resolve, reject) => {
+      const handleEscape = e => {
+        if (e.key === 'Escape') {
+          close();
+          reject(_T('canceled'));
+        }
+      };
+      this.setGlobalEventHandlers([
+        ['keyup', handleEscape],
+      ]);
+      const close = () => {
+        this.setGlobalEventHandlers(null);
+        body.removeChild(bg);
+        body.removeChild(win);
+        if (waiting) {
+          body.classList.add('waiting');
+        }
+      };
+      if (input) {
+        input.addEventListener('keyup', e => {
+          if (e.key === 'Enter') {
+            close();
+            resolve(input.value);
+          }
+        });
+      }
+      conf.addEventListener('click', () => {
+        close();
+        resolve(params.getValue ? input.value.trim() : true);
+      });
+      canc.addEventListener('click', () => {
+        close();
+        reject(_T('canceled'));
+      });
+    });
+    return p;
+  }
+
+  freeze(params) {
+    const win = document.createElement('div');
+    win.className = 'prompt-div';
+    const bg = document.createElement('div');
+    bg.className = 'prompt-bg';
+
+    const text = document.createElement('div');
+    text.className = 'prompt-text';
+    text.textContent = params.message;
+    win.appendChild(text);
+
+    const body = document.querySelector('body');
+    body.appendChild(bg);
+    body.appendChild(win);
+
+    const waiting = body.classList.contains('waiting');
+    if (waiting) {
+      body.classList.remove('waiting');
+    }
+    this.setGlobalEventHandlers([]);
+    return () => {
+      this.setGlobalEventHandlers(null);
+      body.removeChild(bg);
+      body.removeChild(win);
+      if (waiting) {
+        body.classList.add('waiting');
+      }
+    };
+  }
+
   commonPopup_(params) {
     const popup = document.createElement('div');
     const popupBlur = document.createElement('div');
@@ -1324,17 +1452,19 @@ class UI {
     };
     // Add handlers.
     popupClose.addEventListener('click', handleClickClose);
-    document.addEventListener('keyup', handleEscape);
     setTimeout(() => {
-      document.addEventListener('click', handleClickOutside, true);
+      this.setGlobalEventHandlers([
+        ['keyup', handleEscape],
+        ['click', handleClickOutside, true],
+      ]);
     });
 
+    const body = document.querySelector('body');
     const g = document.querySelector('#gallery');
     closePopup = () => {
       // Remove handlers.
       popupClose.removeEventListener('click', handleClickClose);
-      document.removeEventListener('keyup', handleEscape);
-      document.removeEventListener('click', handleClickOutside, true);
+      this.setGlobalEventHandlers(null);
       popup.style.animation = 'fadeOut 0.25s';
       popup.addEventListener('animationend', () => {
         g.removeChild(popup);
@@ -1346,7 +1476,9 @@ class UI {
       if (params.onclose) {
         params.onclose();
       }
+      body.classList.remove('noscroll');
     };
+    body.classList.add('noscroll');
     g.appendChild(popupBlur);
     g.appendChild(popup);
     return {popup: popup, content: popupContent, close: closePopup, info: popupInfo};
@@ -1627,7 +1759,7 @@ class UI {
       name.type = 'text';
       name.value = c.name;
       name.addEventListener('change', onChange);
-      name.addEventListener('keyUp', e => {
+      name.addEventListener('keyup', e => {
         if (e.key === 'Enter') {
           onChange();
         }
@@ -1795,7 +1927,7 @@ class UI {
             input.readonly = false;
           });
         };
-        input.addEventListener('keyUp', e => {
+        input.addEventListener('keyup', e => {
           if (e.key === 'Enter') {
             addFunc();
           }
@@ -2213,14 +2345,13 @@ class UI {
   async showProfile_() {
     const {content, close} = this.commonPopup_({
       title: _T('profile'),
+      className: 'popup profile-popup',
     });
     content.id = 'profile-content';
 
     const onchange = () => {
       delButton.disabled = pass.value === '';
-      if (pass.value === '') {
-        return false;
-      }
+      addSkButton.disabled = pass.value === '';
       let changed = false;
       if (email.value !== this.accountEmail_) {
         changed = true;
@@ -2228,10 +2359,27 @@ class UI {
       if (newPass.value !== '' && newPass2.value !== '') {
         changed = true;
       }
+      if (mfa.checked !== this.mfaEnabled_) {
+        changed = true;
+      }
+      if (passkey.checked !== this.passKey_) {
+        changed = true;
+      }
       if (otp.checked !== this.otpEnabled_ && (!otp.checked || form.querySelector('#profile-form-otp-code').value !== '')) {
         changed = true;
       }
-      button.disabled = !changed;
+      for (let k of Object.keys(keyList)) {
+        if (keyList[k].input.value !== keyList[k].key.name || keyList[k].deleted) {
+          changed = true;
+        }
+      }
+      if (pass.value === '' && changed) {
+        pass.classList.add('highlight');
+      } else {
+        pass.classList.remove('highlight');
+      }
+      button.disabled = pass.value === '' || !changed;
+      addSkButton.textContent = passkey.checked ? _T('add-passkey') : _T('add-security-key');
     };
 
     const form = document.createElement('div');
@@ -2286,12 +2434,42 @@ class UI {
     form.appendChild(newPass2Label);
     form.appendChild(newPass2);
 
+    const mfaLabel = document.createElement('label');
+    mfaLabel.forHtml = 'profile-form-enable-mfa';
+    mfaLabel.textContent = _T('enable-mfa?');
+    const mfaDiv = document.createElement('div');
+    mfaDiv.id = 'profile-form-enable-mfa-div';
+    const mfa = document.createElement('input');
+    mfa.id = 'profile-form-enable-mfa';
+    mfa.type = 'checkbox';
+    mfa.checked = this.mfaEnabled_;
+    mfa.addEventListener('change', () => {
+      form.querySelectorAll('.hide-no-mfa').forEach(e => e.style.display = mfa.checked ? '' : 'none');
+      onchange();
+    });
+    mfaDiv.appendChild(mfa);
+    const testButton = document.createElement('button');
+    testButton.id = 'profile-form-test-mfa';
+    testButton.className = 'hide-no-mfa';
+    testButton.textContent = _T('test');
+    testButton.addEventListener('click', () => {
+      testButton.disabled = true;
+      main.sendRPC('mfaCheck', passkey.checked).finally(() => {
+        testButton.disabled = false;
+      });
+    });
+    mfaDiv.appendChild(testButton);
+    form.appendChild(mfaLabel);
+    form.appendChild(mfaDiv);
+
     let otpKey = '';
     const otpLabel = document.createElement('label');
+    otpLabel.className = 'hide-no-mfa';
     otpLabel.forHtml = 'profile-form-enable-otp';
     otpLabel.textContent = _T('enable-otp?');
     const otpDiv = document.createElement('div');
     otpDiv.id = 'profile-form-enable-otp-div';
+    otpDiv.className = 'hide-no-mfa';
     const otp = document.createElement('input');
     otp.id = 'profile-form-enable-otp';
     otp.type = 'checkbox';
@@ -2305,6 +2483,7 @@ class UI {
           const image = new Image();
           image.src = img;
           const keyDiv = document.createElement('div');
+          keyDiv.id = 'profile-form-otp-key';
           keyDiv.textContent = 'KEY: ' + key;
           const code = document.createElement('input');
           code.id = 'profile-form-otp-code';
@@ -2333,6 +2512,96 @@ class UI {
     form.appendChild(otpLabel);
     form.appendChild(otpDiv);
 
+    const passkeyLabel = document.createElement('label');
+    passkeyLabel.className = 'hide-no-mfa';
+    passkeyLabel.forHtml = 'profile-form-enable-passkey';
+    passkeyLabel.textContent = _T('enable-passkey?');
+    const passkeyDiv = document.createElement('div');
+    passkeyDiv.id = 'profile-form-enable-passkey-div';
+    passkeyDiv.className = 'hide-no-mfa';
+    const passkey = document.createElement('input');
+    passkey.id = 'profile-form-enable-passkey';
+    passkey.className = 'hide-no-mfa';
+    passkey.type = 'checkbox';
+    passkey.checked = this.passKey_;
+    passkey.addEventListener('change', () => {
+      updateKeyList();
+      onchange();
+    });
+    passkeyDiv.appendChild(passkey);
+    form.appendChild(passkeyLabel);
+    form.appendChild(passkeyDiv);
+
+    const skLabel = document.createElement('label');
+    skLabel.className = 'hide-no-mfa';
+    skLabel.forHtml = 'profile-form-add-security-key-button';
+    skLabel.textContent = _T('security-keys:');
+    const skDiv = document.createElement('div');
+    skDiv.id = 'profile-form-security-keys-div';
+    skDiv.className = 'hide-no-mfa';
+
+    const addSkButton = document.createElement('button');
+    addSkButton.id = 'profile-form-add-security-key-button';
+    addSkButton.disabled = true;
+    addSkButton.textContent = passkey.checked ? _T('add-passkey') : _T('add-security-key');
+    addSkButton.addEventListener('click', () => {
+      addSkButton.disabled = true;
+      main.addSecurityKey(pass.value, passkey.checked)
+      .finally(() => {
+        addSkButton.disabled = false;
+        updateKeyList();
+      });
+    });
+    skDiv.appendChild(addSkButton);
+
+    const skList = document.createElement('div');
+    skList.id = 'profile-form-security-key-list';
+    skDiv.appendChild(skList);
+
+    form.appendChild(skLabel);
+    form.appendChild(skDiv);
+
+    let keyList = {};
+    const updateKeyList = () => {
+      main.sendRPC('listSecurityKeys')
+      .then(keys => {
+        while (skList.firstChild) {
+          skList.removeChild(skList.firstChild);
+        }
+        keys = keys.filter(k => !passkey.checked || k.discoverable);
+        keyList = {};
+        if (keys.length > 0) {
+          skList.innerHTML = `<div class="profile-form-security-key-list-header">${_T('name')}</div><div class="profile-form-security-key-list-header">${_T('added')}</div><div></div>`;
+        }
+        for (let k of keys) {
+          let input = document.createElement('input');
+          input.type = 'text';
+          input.className = 'profile-form-security-key-list-item';
+          input.value = k.name;
+          input.addEventListener('change', onchange);
+          input.addEventListener('keyup', onchange);
+          let t = document.createElement('div');
+          t.textContent = (new Date(k.createdAt)).toLocaleDateString(undefined, {year: 'numeric', month: 'short', day: 'numeric'});
+          let del = document.createElement('button');
+          del.textContent = '✖';
+          del.style.cursor = 'pointer';
+          del.addEventListener('click', () => {
+            keyList[k.id].deleted = !keyList[k.id].deleted;
+            input.disabled = keyList[k.id].deleted;
+            input.classList.toggle('deleted-key');
+            t.classList.toggle('deleted-key');
+            del.classList.toggle('deleted-key');
+            onchange();
+          });
+          skList.appendChild(input);
+          skList.appendChild(t);
+          skList.appendChild(del);
+          keyList[k.id] = {key: k, input: input};
+        }
+      });
+    };
+    updateKeyList();
+
     const button = document.createElement('button');
     button.id = 'profile-form-button';
     button.textContent = _T('update');
@@ -2351,27 +2620,48 @@ class UI {
         this.popupMessage(_T('otp-code-required'));
         return;
       }
+      if (mfa.checked) {
+        if (!otp.checked && Object.keys(keyList).filter(k => (!passkey.checked || keyList[k].key.discoverable) && !keyList[k].deleted).length === 0) {
+          this.popupMessage(_T('otp-or-sk-required'));
+          return;
+        }
+      }
       email.disabled = true;
       pass.disabled = true;
       newPass.disabled = true;
       newPass2.disabled = true;
+      mfa.disabled = true;
       otp.disabled = true;
+      passkey.disabled = true;
       button.disabled = true;
       button.textContent = _T('updating');
       delButton.disabled = true;
+
+      const keyChanges = [];
+      for (let k of Object.keys(keyList)) {
+        if (keyList[k].deleted) {
+          keyChanges.push({id:k, deleted:true});
+        } else if (keyList[k].input.value !== keyList[k].key.name) {
+          keyChanges.push({id:k, name:keyList[k].input.value});
+        }
+      }
       main.sendRPC('updateProfile', {
         email: email.value,
         password: pass.value,
         newPassword: newPass.value,
+        setMFA: mfa.checked,
+        passKey: passkey.checked,
         setOTP: otp.checked,
         otpKey: otpKey,
         otpCode: code ? code.value : '',
+        keyChanges: keyChanges,
       })
       .then(() => {
         this.accountEmail_ = email.value;
         this.loggedInAccount_.textContent = email.value;
+        this.mfaEnabled_ = mfa.checked;
         this.otpEnabled_ = otp.checked;
-        this.popupMessage(_T('updated'), 'info');
+        this.passKey_ = passkey.checked;
         close();
       })
       .catch(err => {
@@ -2382,13 +2672,16 @@ class UI {
         pass.disabled = false;
         newPass.disabled = false;
         newPass2.disabled = false;
+        mfa.disabled = false;
         otp.disabled = false;
+        passkey.disabled = false;
         button.disabled = false;
         button.textContent = _T('update');
         delButton.disabled = false;
       });
     });
     form.appendChild(button);
+    form.querySelectorAll('.hide-no-mfa').forEach(e => e.style.display = mfa.checked ? '' : 'none');
     content.appendChild(form);
 
     const deleteMsg = document.createElement('div');
@@ -2404,9 +2697,6 @@ class UI {
         this.popupMessage(_T('current-password-required'));
         return;
       }
-      if (!window.confirm(_T('confirm-delete-account'))) {
-        return;
-      }
       email.disabled = true;
       pass.disabled = true;
       newPass.disabled = true;
@@ -2414,7 +2704,8 @@ class UI {
       button.disabled = true;
       button.textContent = _T('updating');
       delButton.disabled = true;
-      main.sendRPC('deleteAccount', pass.value)
+      this.prompt({message: _T('confirm-delete-account')})
+      .then(() => main.sendRPC('deleteAccount', pass.value))
       .then(() => {
         window.location.reload();
       })
@@ -2698,6 +2989,7 @@ class UI {
       saveButton.disabled = changes() === null;
     };
     const saveButton = document.createElement('button');
+    saveButton.id = 'admin-console-save-button';
     saveButton.textContent = _T('save-changes');
     saveButton.disabled = true;
     saveButton.addEventListener('click', () => {
@@ -2763,16 +3055,22 @@ class UI {
     defQuotaDiv.appendChild(defQuotaUnit);
     content.appendChild(defQuotaDiv);
 
-    const table = document.createElement('div');
-    table.id = 'admin-console-table';
-    content.appendChild(table);
+    const filter = document.createElement('input');
+    filter.id = 'admin-console-filter';
+    filter.type = 'search';
+    filter.placeholder = _T('filter');
+    filter.addEventListener('keyup', () => {
+      showUsers();
+    });
+    content.appendChild(filter);
 
-    table.innerHTML = `<div>${_T('email')}</div><div>${_T('locked')}</div><div>${_T('approved')}</div><div>${_T('admin')}</div><div>${_T('quota')}</div>`;
-
+    const view = {};
     for (let user of data.users) {
+      view[user.email] = [];
+
       const email = document.createElement('div');
       email.textContent = user.email;
-      table.appendChild(email);
+      view[user.email].push(email);
 
       const lockedDiv = document.createElement('div');
       const locked = document.createElement('input');
@@ -2790,7 +3088,7 @@ class UI {
         onchange();
       });
       lockedDiv.appendChild(locked);
-      table.appendChild(lockedDiv);
+      view[user.email].push(lockedDiv);
 
       const approvedDiv = document.createElement('div');
       const approved = document.createElement('input');
@@ -2808,7 +3106,7 @@ class UI {
         onchange();
       });
       approvedDiv.appendChild(approved);
-      table.appendChild(approvedDiv);
+      view[user.email].push(approvedDiv);
 
       const adminDiv = document.createElement('div');
       const admin = document.createElement('input');
@@ -2826,7 +3124,7 @@ class UI {
         onchange();
       });
       adminDiv.appendChild(admin);
-      table.appendChild(adminDiv);
+      view[user.email].push(adminDiv);
 
       const quotaDiv = document.createElement('div');
       quotaDiv.className = 'quota-cell';
@@ -2866,7 +3164,24 @@ class UI {
         onchange();
       });
       quotaDiv.appendChild(quotaUnit);
-      table.appendChild(quotaDiv);
+      view[user.email].push(quotaDiv);
     }
+
+    const table = document.createElement('div');
+    table.id = 'admin-console-table';
+    content.appendChild(table);
+
+    const showUsers = () => {
+      while (table.firstChild) {
+        table.removeChild(table.firstChild);
+      }
+      table.innerHTML = `<div>${_T('email')}</div><div>${_T('locked')}</div><div>${_T('approved')}</div><div>${_T('admin')}</div><div>${_T('quota')}</div>`;
+      for (let user of data.users) {
+        if (filter.value === '' || user.email.includes(filter.value) || Object.keys(user).filter(k => k.startsWith('_')).length > 0) {
+          view[user.email].forEach(e => table.appendChild(e));
+        }
+      }
+    };
+    showUsers();
   }
 }
