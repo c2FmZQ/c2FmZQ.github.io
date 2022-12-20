@@ -88,9 +88,6 @@ class c2FmZQClient {
     const needKey = this.vars_.sk === undefined;
     return Promise.resolve({
       account: loggedIn,
-      mfaEnabled: this.vars_.mfaEnabled,
-      passKey: this.vars_.passKey,
-      otpEnabled: this.vars_.otpEnabled,
       isAdmin: this.vars_.isAdmin,
       needKey: needKey
     });
@@ -168,9 +165,6 @@ class c2FmZQClient {
         console.log('SW logged in');
         this.vars_.email = email;
         this.vars_.userId = resp.parts.userId;
-        this.vars_.mfaEnabled = resp.parts._mfaEnabled === '1';
-        this.vars_.passKey = resp.parts._passKey === '1';
-        this.vars_.otpEnabled = resp.parts._otpEnabled === '1';
         this.vars_.isAdmin = resp.parts._admin === '1';
         this.vars_.enableNotifications = args.enableNotifications;
 
@@ -184,9 +178,6 @@ class c2FmZQClient {
         }
         return {
           account: email,
-          mfaEnabled: this.vars_.mfaEnabled,
-          passKey: this.vars_.passKey,
-          otpEnabled: this.vars_.otpEnabled,
           isAdmin: this.vars_.isAdmin,
           needKey: this.vars_.sk === undefined,
         };
@@ -404,8 +395,9 @@ class c2FmZQClient {
     if (!await this.checkPassword_(args.password)) {
       throw new Error('incorrect password');
     }
+    const curr = await this.mfaStatus(clientId);
     const maybeSetMFA = async () => {
-      if (args.setMFA !== this.vars_.mfaEnabled || args.passKey !== this.vars_.passKey) {
+      if (args.setMFA !== curr.mfaEnabled || args.passKey !== curr.passKey) {
         const params = {
           requireMFA: args.setMFA ? '1' : '0',
           passKey: args.passKey ? '1' : '0',
@@ -417,14 +409,13 @@ class c2FmZQClient {
         if (resp.status !== 'ok') {
           throw new Error('MFA update failed');
         }
-        this.vars_.mfaEnabled = args.setMFA;
       }
     };
     if (!args.setMFA) {
       await maybeSetMFA();
     }
 
-    if (args.setOTP !== this.vars_.otpEnabled) {
+    if (args.setOTP !== curr.otpEnabled) {
       const params = {
         key: ''+args.otpKey,
         code: ''+args.otpCode,
@@ -436,7 +427,6 @@ class c2FmZQClient {
       if (resp.status !== 'ok') {
         throw new Error('OTP update failed');
       }
-      this.vars_.otpEnabled = args.setOTP;
     }
     if (this.vars_.email !== args.email) {
       const resp = await this.sendRequest_(clientId, 'v2/login/changeEmail', {
@@ -524,6 +514,15 @@ class c2FmZQClient {
       throw new Error('error');
     }
     return resp.parts.attestationOptions;
+  }
+
+  async mfaStatus(clientId) {
+    console.log('SW mfaStatus');
+    const resp = await this.sendRequest_(clientId, 'v2x/mfa/status', {token: this.vars_.token});
+    if (resp.status !== 'ok') {
+      throw new Error('error');
+    }
+    return resp.parts;
   }
 
   async mfaCheck(clientId, passKey) {
@@ -1039,13 +1038,14 @@ class c2FmZQClient {
 
   /*
    */
-  async getCollections(/*clientId*/) {
+  async getCollections(clientId) {
     return new Promise(async resolve => {
+      let {url} = await this.getCover(clientId, 'gallery');
       let out = [
         {
           'collection': 'gallery',
           'name': 'gallery',
-          'cover': await this.getCover_('gallery'),
+          'cover': url,
           'isOwner': true,
           'isShared': false,
           'canAdd': true,
@@ -1066,10 +1066,11 @@ class c2FmZQClient {
           continue;
         }
         const a = this.db_.albums[n];
+        let {url} = await this.getCover(clientId, a.albumId);
         albums.push({
           'collection': a.albumId,
           'name': await this.decryptString_(a.encName),
-          'cover': await this.getCover_(a.albumId),
+          'cover': url,
           'members': a.members.map(m => {
             if (m === this.vars_.userId) return {userId: m, email: this.vars_.email, myself: true};
             if (m in this.db_.contacts) return {userId: m, email: this.db_.contacts[m].email};
@@ -1092,28 +1093,30 @@ class c2FmZQClient {
     });
   }
 
-  async getCover_(collection) {
-    let cover = '';
-    if (collection in this.db_.albums) {
-      cover = this.db_.albums[collection].cover;
-      if (cover === '__b__') {
-        return null;
-      }
+  async getCover(clientId, collection, opt_code) {
+    let code = opt_code;
+    if (code === undefined && collection in this.db_.albums) {
+      code = this.db_.albums[collection].cover;
     }
-    if (cover === '') {
+    if (code === '__b__') {
+      return {url:null, code:code};
+    }
+    let file = code || '';
+    if (file === '') {
       const idx = await store.get(`index/${collection}/000000`);
       if (idx?.files?.length > 0) {
-        cover = idx.files[0].file;
+        file = idx.files[0].file;
       }
     }
-    if (cover === '') {
-      return null;
+    if (file === '') {
+      return {url:null, code:code};
     }
-    const f = await this.getFile_(collection, cover);
+    const f = await this.getFile_(collection, file);
     if (!f) {
-      return null;
+      return {url:null, code:code};
     }
-    return this.getDecryptUrl_(f, true);
+    const url = await this.getDecryptUrl_(f, true);
+    return {url:url, code:code};
   }
 
   async getDecryptUrl_(f, isThumb) {
@@ -1689,6 +1692,7 @@ class c2FmZQClient {
           'getContacts',
           'getFiles',
           'getCollections',
+          'getCover',
           'getUpdates',
           'moveFiles',
           'emptyTrash',
@@ -1705,6 +1709,7 @@ class c2FmZQClient {
           'setCachePreference',
           'cachePreference',
           'enableNotifications',
+          'mfaStatus',
           'ping',
         ];
         if (allowedMethods.includes(func)) {
