@@ -21,9 +21,9 @@ c2FmZQ. If not, see <https://www.gnu.org/licenses/>.
   <title>c2FmZQ</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
   <meta http-equiv="content-type" content="text/html; charset=utf-8" />
-  <meta name="description" content="Open source project that facilitates the secure storage and sharing of files, including but not limited to photos and videos." />
+  <meta name="description" content="Store and share files with friends and family securely using your own server." />
   <meta name="keywords" content="photos,security,fuse,privacy,encryption,pwa,progressive-web-app,storage,sharing,self-hosted,videos,fuse-filesystem,end-to-end-encryption,zero-trust" />
-  <link rel="icon" type="image/png" href="pwa/c2.png" />
+  <link rel="icon" type="image/png" href="pwa/c2-144x144.png" />
   <style>
 html {
   margin: 0;
@@ -32,13 +32,24 @@ html {
 body {
   font-family: monospace;
   font-size: 150%;
-  background-color: rgb(240, 240, 240);
+  background-color: lightgrey;
 }
-a {
+div.buttons {
+  text-align: center;
+}
+div.buttons a {
   color: black;
+  text-decoration: none;
+  border: 1px solid black;
+  border-radius: 10px;
+  padding: 0.25em;
+  line-height: 2em;
+  background-color: lightgrey;
+  white-space: nowrap;
 }
-a:hover {
-  color: gray;
+div.buttons a:hover {
+  color: white;
+  background-color: grey;
 }
 #main {
   position: fixed;
@@ -47,28 +58,43 @@ a:hover {
   transform: translate(-50%, -50%);
   padding: 10px;
   border: 1px solid black;
+  border-radius: 10px;
   box-shadow: 5px 5px 5px black;
   width: 80vw;
   max-height: 80vh;
   overflow-y: scroll;
   background-color: white;
 }
+#main img {
+  border: 1px solid black;
+  border-radius: 10px;
+  float: left;
+  margin-right: 10px;
+  margin-bottom: 10px;
+}
+p.smaller {
+  color: gray;
+  font-size: 75%;
+  font-style: italic;
+}
   </style>
 </head>
 <body>
 <div id="main">
-<p><strong>c2FmZQ</strong> is an open source project that facilitates the secure storage and sharing of files, including
-but not limited to photos and videos.</p>
-<p>This project does not host any user data. Users are expected to store their data on their own servers.</p>
-<p>Please refer to the <a href="https://github.com/c2FmZQ/c2FmZQ/blob/main/README.md">README</a>.</p>
+<a href="https://c2fmzq.org/"><img src="pwa/c2-144x144.png" width="48" height="48" alt="c2FmZQ" /></a>
+<p>Self-hosted privacy</p>
+<br clear="all" />
+<p>Store and share files with friends and family securely using your own server.</p>
+<p><strong>c2FmZQ</strong> is free and open source software that includes a server,
+a command-line client, and a progressive web application that runs in your
+favorite browsers.</p>
+<p>Only you and those with whom you share your files can access their content. Even the server can't decrypt your data.</p>
 
-<p>Links:</p>
-<ul>
-<li><a href="https://github.com/c2FmZQ/c2FmZQ">GO server and command-line client application</a></li>
-<li><a href="https://github.com/c2FmZQ/stingle-photos-for-self-hosted-server">Stingle Photos for self-hosted server</a> (Android App)</li>
-<li><a href="pwa/">Progressive Web App (PWA)</a> (experimental)</li>
-<li><a href="https://github.com/c2FmZQ/c2FmZQ.github.io">This web site's repo</a></li>
-</ul>
+<div class="buttons">
+<a href="https://github.com/c2FmZQ/c2FmZQ#readme">Read more</a>
+<a href="pwa/">Open App</a>
+</div>
+<p class="smaller">This project does not host or store any user data. Users are expected to store their data on their own servers.</p>
 </div>
 </body>
 </html>
