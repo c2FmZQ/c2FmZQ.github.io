@@ -70,16 +70,6 @@ class c2FmZQClient {
         return this.init();
       }
       this.cache_ = await self.caches.open('local');
-      if ('connection' in navigator) {
-        this.#state.currentNetworkType = navigator.connection.type;
-        navigator.connection.addEventListener('change', event => {
-          if (this.#state.currentNetworkType !== navigator.connection.type) {
-            console.log(`SW network changed ${this.currentNetworkType_} -> ${navigator.connection.type}`);
-            this.#state.currentNetworkType = navigator.connection.type;
-            this.onNetworkChange(event);
-          }
-        });
-      }
       if (this.vars_.maxCacheSize === undefined) {
         if ('estimate' in navigator.storage) {
           const est = await navigator.storage.estimate();
@@ -101,6 +91,12 @@ class c2FmZQClient {
    */
   async saveVars_() {
     return this.#store.set('vars', this.vars_);
+  }
+
+  async clearVars_() {
+    this.vars_ = {};
+    await this.saveVars_();
+    return this.#store.clear();
   }
 
   /*
@@ -676,7 +672,11 @@ class c2FmZQClient {
     if (resp.status !== 'ok') {
       throw resp.status;
     }
-    return this.logout(clientId);
+    this.resetDB_();
+    await this.clearVars_();
+    await this.#store.clear();
+    await this.deleteCache_();
+    this.#sw.sendLoggedOut();
   }
 
   async makeKeyBundle_(password, pk, sk) {
@@ -726,11 +726,10 @@ class c2FmZQClient {
       .then(() => console.log('SW logged out'))
       .catch(console.error)
       .finally(async () => {
-        this.vars_ = {};
         this.resetDB_();
+        await this.clearVars_();
         await this.#store.clear();
         await this.deleteCache_();
-        this.loadVars_();
         console.log('SW internal data cleared');
       });
   }
@@ -1043,12 +1042,6 @@ class c2FmZQClient {
     return this.#store.get(`files/${collection}/${file}`);
   }
 
-  async deletePrefix_(prefix) {
-    return this.#store.keys()
-      .then(keys => keys.filter(k => k.startsWith(prefix)))
-      .then(keys => Promise.all(keys.map(k => this.#store.del(k))));
-  }
-
   /*
    */
   async convertFileUpdate_(up, set) {
@@ -1067,10 +1060,10 @@ class c2FmZQClient {
   }
 
   async indexCollection_(collection) {
-    await this.deletePrefix_(`index/${collection}`);
+    await this.#store.del(Store2.prefix(`index/${collection}/`));
 
     const prefix = `files/${collection}/`;
-    const keys = (await this.#store.keys()).filter(k => k.startsWith(prefix));
+    const keys = await this.#store.keys(Store2.prefix(prefix));
     let out = [];
     for (let k of keys) {
       const file = k.substring(prefix.length);
@@ -1583,7 +1576,7 @@ class c2FmZQClient {
 
   async deleteCollection(clientId, collection) {
     const prefix = `files/${collection}/`;
-    const files = (await this.#store.keys()).filter(k => k.startsWith(prefix)).map(k => k.substring(prefix.length));
+    const files = (await this.#store.keys(Store2.prefix(prefix))).map(k => k.substring(prefix.length));
     if (files.length > 0) {
       await this.moveFiles(clientId, collection, 'trash', files, true);
     }
@@ -1878,7 +1871,7 @@ class c2FmZQClient {
     const wanttn = new Map();
 
     console.time('SW cache stick/unstick');
-    (await this.#store.keys()).filter(k => k.startsWith('files/')).map(k => {
+    (await this.#store.keys(Store2.prefix('files/'))).map(k => {
       const p = k.lastIndexOf('/');
       const c = k.substring(6, p);
       const f = k.substring(p+1);
@@ -2230,7 +2223,7 @@ class c2FmZQClient {
         'cache-control': 'no-store, immutable',
         'content-type': ctype,
       };
-      if (ctype === 'application/octet-stream') {
+      if (ctype.startsWith('application/')) {
         h['content-disposition'] = 'attachment';
         h['content-security-policy'] = 'sandbox;';
       }

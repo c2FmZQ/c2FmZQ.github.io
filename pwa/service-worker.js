@@ -34,7 +34,7 @@ let MANIFEST = [
   'index.html',
   'lang.js',
   'main.js',
-  'store.js',
+  'store2.js',
   'style.css',
   'ui.js',
   'utils.js',
@@ -51,7 +51,7 @@ if (self.location.search.includes('tests')) {
 
 self.importScripts('thirdparty/libs.js');
 self.importScripts('lang.js');
-self.importScripts('store.js');
+self.importScripts('store2.js');
 self.importScripts('utils.js');
 self.importScripts('c2fmzq-client.js');
 self.importScripts('cache-manager.js');
@@ -68,8 +68,8 @@ class ServiceWorker {
     this.#state.initp = null;
     this.#state.rpcId = Math.floor(Math.random() * 1000000000);
     this.#state.rpcWait = {};
-    this.#store = new Store();
-    this.#notifs = new Store('notifications');
+    this.#store = new Store2();
+    this.#notifs = new Store2('notifications');
     this.#notifs.setPassphrase('notifications');
   }
 
@@ -86,29 +86,54 @@ class ServiceWorker {
     self.addEventListener('push', event => sw.#onpush(event));
     self.addEventListener('pushsubscriptionchange', event => sw.#onpushsubscriptionchange(event));
     self.addEventListener('fetch', event => sw.#onfetch(event));
-    (async () => sw.#initApp(null))();
+    if ('connection' in navigator) {
+      sw.#state.currentNetworkType = navigator.connection.type;
+      navigator.connection.addEventListener('change', event => {
+        if (sw.#state.currentNetworkType !== navigator.connection.type) {
+          console.log(`SW network changed ${sw.currentNetworkType_} -> ${navigator.connection.type}`);
+          sw.#state.currentNetworkType = navigator.connection.type;
+          if (sw.#app) {
+            sw.#app.onNetworkChange(event);
+          }
+        }
+      });
+    }
+    sw.#sendHello();
   }
 
-  async #initApp(storeKey, capabilities) {
+  async #initApp(storeKey, storeName, capabilities, reset) {
     const p = new Promise(async (resolve, reject) => {
-      if (this.#store.passphrase() || !storeKey) {
-        this.#sendHello();
-        return resolve();
-      }
+      const dbList = await self.indexedDB.databases().then(list => list.filter(item => item.name !== 'notifications').map(item => item.name));
+      console.log(`SW storeName ${storeName} ${JSON.stringify(dbList)}`);
       try {
-        await this.#store.open(storeKey);
-      } catch (err) {
-        if (err.message === 'Wrong passphrase') {
-          console.log('SW Wrong passphrase');
-          this.#sendHello(err.message);
+        if (!reset && dbList.length && !dbList.includes(storeName)) {
+          console.log('SW Wrong passphrase (new storeName)');
+          this.#sendHello('Wrong passphrase');
           return resolve();
         }
+        this.#store.setName(storeName);
+        this.#store.setPassphrase(storeKey);
+        await this.#store.open();
+        if (!await this.#store.check()) {
+          console.log('SW Wrong passphrase');
+          this.#sendHello('Wrong passphrase');
+          return resolve();
+        }
+      } catch (err) {
         return reject(err);
       }
       if (this.#state.appInitialized) {
         return resolve();
       }
       this.#state.appInitialized = true;
+      dbList.filter(item => item !== storeName).forEach(name => {
+        console.log(`SW Delete database ${name}`);
+        try {
+          self.indexedDB.deleteDatabase(name);
+        } catch (err) {
+          console.log(`SW deleteDatabase(${name}):`, err);
+        }
+      });
       const app = new c2FmZQClient({
         store: this.#store,
         sw: this,
@@ -365,7 +390,18 @@ class ServiceWorker {
           console.log(`SW Version mismatch: ${event.data.version} != ${VERSION}`);
         }
         Lang.current = event.data.lang || 'en-US';
-        this.#initApp(event.data.storeKey, event.data.capabilities);
+        if (!event.data.storeKey) {
+          this.#sendHello();
+        } else {
+          this.#initApp(event.data.storeKey, event.data.storeName, event.data.capabilities, event.data.reset);
+        }
+        break;
+      case 'lock':
+        console.log('SW Received lock');
+        this.#store.lock();
+        this.#app = null;
+        this.#state.appInitialized = false;
+        this.#store = new Store2();
         break;
       case 'rpc':
         this.#handleRpcRequest(clientId, event);
@@ -481,18 +517,19 @@ class ServiceWorker {
       const handler = async () => {
         if (this.#app) {
           await this.#store.open();
-          return resolve(this.#app.handleFetchEvent(event));
+          return resolve(this.#app.handleFetchEvent(event).finally(() => this.#store.release()));
         }
         if (count++ > 100) {
-          this.fixme();
-          console.log(event.request);
-          return reject(new Error('timeout'));
+          if (!this.#store.locked()) {
+            this.fixme();
+            console.log(event.request);
+          }
+          return resolve(new Response('Service Unavailable', {'status': 502, 'statusText': 'Service Unavailable'}));
         }
         setTimeout(handler, 100);
       };
       handler();
-    })
-    .finally(() => this.#store.release()));
+    }));
   }
 
   fixme() {
