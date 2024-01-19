@@ -28,11 +28,12 @@ c2FmZQ. If not, see <https://www.gnu.org/licenses/>.
 html {
   margin: 0;
   height: 100vh;
+  background: linear-gradient(30deg, skyblue, slateblue);
+  background-attachment: fixed;
 }
 body {
   font-family: monospace;
   font-size: 150%;
-  background-color: lightgrey;
 }
 div.buttons {
   text-align: center;
@@ -44,12 +45,12 @@ div.buttons a {
   border-radius: 10px;
   padding: 0.25em;
   line-height: 2em;
-  background-color: lightgrey;
+  background-color: skyblue;
   white-space: nowrap;
 }
 div.buttons a:hover {
   color: white;
-  background-color: grey;
+  background-color: slateblue;
 }
 #main {
   position: fixed;
@@ -94,6 +95,20 @@ favorite browsers.</p>
 <a href="https://github.com/c2FmZQ/c2FmZQ#readme">Read more</a>
 <a href="pwa/">Open App</a>
 </div>
+
+<p><strong>TLSPROXY</strong> is a TLS termination proxy that uses
+<a href="https://letsencrypt.org/">Let's Encrypt</a> to provide TLS encryption
+for any number of TCP or HTTP servers, and any number of server names
+concurrently on the same port.</p>
+
+<p>TLSPROXY can also be used as a Reverse Proxy for HTTP(S) services, and
+optionally control access to these services with user authentication and
+authorization. It works well as a front-end gateway for the c2FmZQ server.</p>
+
+<div class="buttons">
+<a href="https://github.com/c2FmZQ/tlsproxy#readme">Read more</a>
+</div>
+
 <p class="smaller">This project does not host or store any user data. Users are expected to store their data on their own servers.</p>
 </div>
 </body>
