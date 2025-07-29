@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-Copyright 2021-2022 TTBT Enterprises LLC
+Copyright 2021-2025 TTBT Enterprises LLC
 
 This file is part of c2FmZQ (https://c2FmZQ.org/).
 
@@ -22,7 +22,7 @@ c2FmZQ. If not, see <https://www.gnu.org/licenses/>.
   <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
   <meta http-equiv="content-type" content="text/html; charset=utf-8" />
   <meta name="description" content="Store and share files with friends and family securely using your own server." />
-  <meta name="keywords" content="photos,security,fuse,privacy,encryption,pwa,progressive-web-app,storage,sharing,self-hosted,videos,fuse-filesystem,end-to-end-encryption,zero-trust" />
+  <meta name="keywords" content="photos,security,privacy,encryption,pwa,progressive-web-app,storage,sharing,self-hosted,videos,fuse-filesystem,end-to-end-encryption,zero-trust" />
   <link rel="icon" type="image/png" href="pwa/c2-144x144.png" />
   <style>
 html {
@@ -36,7 +36,8 @@ body {
   font-size: 150%;
 }
 div.buttons {
-  text-align: center;
+  text-align: left;
+  font-size: 75%;
 }
 div.buttons a {
   color: black;
@@ -61,8 +62,8 @@ div.buttons a:hover {
   border: 1px solid black;
   border-radius: 10px;
   box-shadow: 5px 5px 5px black;
-  width: 80vw;
-  max-height: 80vh;
+  width: 95vw;
+  max-height: 90vh;
   overflow-y: scroll;
   background-color: white;
 }
@@ -72,6 +73,12 @@ div.buttons a:hover {
   float: left;
   margin-right: 10px;
   margin-bottom: 10px;
+}
+h1 {
+  font-size: 120%;
+}
+h2 {
+  font-size: 110%;
 }
 p.smaller {
   color: gray;
@@ -85,28 +92,43 @@ p.smaller {
 <a href="https://c2fmzq.org/"><img src="pwa/c2-144x144.png" width="48" height="48" alt="c2FmZQ" /></a>
 <p>Self-hosted privacy</p>
 <br clear="all" />
-<p>Store and share files with friends and family securely using your own server.</p>
-<p><strong>c2FmZQ</strong> is free and open source software that includes a server,
-a command-line client, and a progressive web application that runs in your
-favorite browsers.</p>
-<p>Only you and those with whom you share your files can access their content. Even the server can't decrypt your data.</p>
 
-<div class="buttons">
-<a href="https://github.com/c2FmZQ/c2FmZQ#readme">Read more</a>
-<a href="pwa/">Open App</a>
-</div>
+<h1>Secure software for self-hosted privacy</h1>
+<p>We focus on software that can be hosted on a single server or virtual
+machine, at home or at a cloud provider.</p>
 
-<p><strong>TLSPROXY</strong> is a TLS termination proxy that uses
-<a href="https://letsencrypt.org/">Let's Encrypt</a> to provide TLS encryption
-for any number of TCP or HTTP servers, and any number of server names
+<hr />
+<h2>tlsproxy</h2>
+
+<p>A simple but powerful TLS proxy, reverse proxy, and web server. It provides
+TLS encryption for any number of TCP or HTTP servers, and any number of server names
 concurrently on the same port.</p>
 
-<p>TLSPROXY can also be used as a Reverse Proxy for HTTP(S) services, and
-optionally control access to these services with user authentication and
-authorization. It works well as a front-end gateway for the c2FmZQ server.</p>
+<p>It can also be used as a Reverse Proxy for HTTP(S) services, and control access
+to these services with user authentication and authorization.</p>
 
 <div class="buttons">
 <a href="https://github.com/c2FmZQ/tlsproxy#readme">Read more</a>
+</div>
+<hr />
+
+<h2>photos</h2>
+
+<p>A photo album with state-of-the-art end-to-end encryption. Store and share files with friends and family securely using your own server.</p>
+
+<p>Only you and those with whom you share your files can access their content.
+Even the server can't decrypt your data.</p>
+
+<div class="buttons">
+<a href="https://github.com/c2FmZQ/photos#readme">Read more</a>
+<a href="pwa/">Open App</a>
+</div>
+<hr />
+
+<h2>sshterm</h2>
+<p>A web-based SSH client that is closely integrated with tlsproxy.</p>
+<div class="buttons">
+<a href="https://github.com/c2FmZQ/sshterm#readme">Read more</a>
 </div>
 
 <p class="smaller">This project does not host or store any user data. Users are expected to store their data on their own servers.</p>
