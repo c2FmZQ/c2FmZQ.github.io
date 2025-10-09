@@ -349,7 +349,7 @@ class UI {
     });
     this.accountButton_.addEventListener('click', this.showAccountMenu_.bind(this));
     this.accountButton_.addEventListener('contextmenu', this.showAccountMenu_.bind(this));
-    this.accountButton_.textContent = _T('account');
+        this.accountButton_.innerHTML = '<img src="icons/user.svg" alt="Account" class="icon"> ▼';
     this.accountButton_.title = _T('account-title');
     this.accountButton_.setAttribute('aria-label', _T('account-title'));
 
@@ -513,7 +513,7 @@ class UI {
     const div = UI.create('div', {className:className || 'error', role:opt.role || 'status'});
     div.style.position = 'relative';
     div.style.zIndex = this.popupZindex_++;
-    const v = UI.create('span', {text:'✖',parent:div});
+    const v = UI.create('span', {html:'<img src="icons/x.svg" alt="Close" class="icon">',parent:div});
     v.style = 'float: right;';
     const m = UI.create('div', {className:'popup-message',parent:div});
     if (message instanceof Element) {
@@ -609,7 +609,7 @@ class UI {
   }
 
   showLoggedIn_() {
-    this.title_.textContent = 'Gallery';
+    this.title_.textContent = _T('gallery-title');
     document.querySelector('#loggedout-div').className = 'hidden';
     document.querySelector('#passphrase-div').className = 'hidden';
     document.querySelector('#loggedin-div').className = '';
@@ -970,7 +970,8 @@ class UI {
     const collButtons = UI.create('div', {id:'collection-buttons'});
     const formatButton = UI.create('button', {
       id: 'format-button',
-      text: this.galleryState_.format === 'list' ? _T('grid') : _T('list'),
+      className: 'button',
+      html: this.galleryState_.format === 'list' ? '<img src="icons/grid.svg" alt="Grid" class="icon">' : '<img src="icons/list.svg" alt="List" class="icon">',
       title: this.galleryState_.format === 'list' ? _T('grid-title') : _T('list-title'),
       parent: collButtons,
     });
@@ -979,7 +980,7 @@ class UI {
       this.refreshGallery_(true);
     });
     if (this.galleryState_.collection === 'trash') {
-      const emptyButton = UI.create('button', {className:'empty-trash',text:_T('empty'),parent:collButtons});
+      const emptyButton = UI.create('button', {className:'empty-trash button',text:_T('empty'),parent:collButtons});
       EL.add(emptyButton, 'click', e => {
         this.emptyTrash_(e.target);
       });
@@ -987,7 +988,8 @@ class UI {
     if (this.galleryState_.collection !== 'gallery' && this.galleryState_.collection !== 'trash') {
       const settingsButton = UI.create('button', {
         id: 'settings-button',
-        text: '⚙',
+        className: 'button',
+        html: '<img src="icons/settings.svg" alt="Settings" class="icon">',
         title: _T('settings-title'),
       });
       EL.add(settingsButton, 'click', () => {
@@ -998,7 +1000,7 @@ class UI {
     g.appendChild(collButtons);
 
     if (currentCollection.isOwner || currentCollection.canAdd) {
-      const addDiv = UI.create('div', {id:'add-button', text: '＋', tabindex:'0', role:'link', title: _T('add-button-title'), parent:g});
+      const addDiv = UI.create('div', {id:'add-button', html: '<img src="icons/plus.svg" alt="Add" class="icon">', tabindex:'0', role:'link', title: _T('add-button-title'), parent:g});
       EL.add(addDiv, 'keydown', e => {
         if (e.key === 'Enter') {
           this.showAddMenu_(e);
@@ -1533,7 +1535,7 @@ class UI {
       if (params.items[i].onclick) {
         const item = UI.create('button', {
           id: params.items[i].id,
-          className: 'context-menu-item',
+          className: 'context-menu-item button',
           text: params.items[i].text,
           tabindex: '0',
           role: 'menuitem',
@@ -1657,8 +1659,8 @@ class UI {
     }
 
     const buttons = UI.create('div', {className:'prompt-button-row button-group',parent:win});
-    const canc = UI.create('button', {className:'prompt-cancel-button', text:params.cancelText || _T('cancel'), tabindex:'0', parent:buttons});
-    const conf = UI.create('button', {className:'prompt-confirm-button', text:params.confirmText || _T('confirm'), tabindex:'0', parent:buttons});
+    const canc = UI.create('button', {className:'prompt-cancel-button button', text:params.cancelText || _T('cancel'), tabindex:'0', parent:buttons});
+    const conf = UI.create('button', {className:'prompt-confirm-button button', text:params.confirmText || _T('confirm'), tabindex:'0', parent:buttons});
 
     body.appendChild(win);
     if (input) input.focus();
@@ -1730,9 +1732,9 @@ class UI {
     const EL = params.EL || new EventListeners();
     const popup = UI.create('div', {className:params.className || 'popup'});
     const popupHeader = UI.create('div', {className:'popup-header', parent:popup});
-    const popupName = UI.create('div', {className:'popup-name', text:params.title || 'Title', parent:popupHeader});
-    const popupInfo = UI.create('div', {className:'popup-info', text:'ⓘ', tabindex:'0', role:'button', title:_T('info')});
-    const popupClose = UI.create('div', {className:'popup-close', text:'✖', tabindex:'0', role:'button', title:_T('close')});
+    const popupName = UI.create('div', {className:'popup-name', text:params.title || _T('popup-default-title'), parent:popupHeader});
+    const popupInfo = UI.create('div', {className:'popup-info', html:'<img src="icons/info.svg" alt="Info" class="icon">', tabindex:'0', role:'button', title:_T('info')});
+    const popupClose = UI.create('div', {className:'popup-close', html:'<img src="icons/x.svg" alt="Close" class="icon">', tabindex:'0', role:'button', title:_T('close')});
     const popupContent = UI.create('div', {className:'popup-content', parent:popup});
 
     const body = document.body;
@@ -1995,7 +1997,7 @@ class UI {
       event.preventDefault();
     }, true);
     if (i > 0) {
-      const leftButton = UI.create('div', {className:'arrow left',text:'⬅️',tabindex:"0",title:_T('previous'),role:'button',parent:content});
+      const leftButton = UI.create('div', {className:'arrow left',html:'<img src="icons/arrow-left.svg" alt="Previous" class="icon">',tabindex:"0",title:_T('previous'),role:'button',parent:content});
       EL.add(leftButton, 'click', goLeft);
       EL.add(leftButton, 'keydown', e => {
         if (e.key === 'Enter') {
@@ -2004,7 +2006,7 @@ class UI {
       });
     }
     if (i+1 < max) {
-      const rightButton = UI.create('div', {className:'arrow right',text:'➡️',tabindex:"0",title:_T('next'),role:'button',parent:content});
+      const rightButton = UI.create('div', {className:'arrow right',html:'<img src="icons/arrow-right.svg" alt="Next" class="icon">',tabindex:"0",title:_T('next'),role:'button',parent:content});
       EL.add(rightButton, 'click', goRight);
       EL.add(rightButton, 'keydown', e => {
         if (e.key === 'Enter') {
@@ -2060,7 +2062,7 @@ class UI {
       const lon = `${data.GPSLongitudeRef.value} ${data.GPSLongitude.description}°`;
       pos.textContent = `${lat} ${lon}`;
     }
-    const more = UI.create('div', {className:'exif-more-details',text: '➕', tabindex:'0', role:'button', title:_T('expand'), parent:div});
+    const more = UI.create('div', {className:'exif-more-details',html: '<img src="icons/plus.svg" alt="Expand" class="icon">', tabindex:'0', role:'button', title:_T('expand'), parent:div});
     let expanded = false;
     const onclick = () => {
       details.classList.toggle('hidden');
@@ -2274,7 +2276,7 @@ class UI {
     };
 
     if (!c.create) {
-      const deleteButton = UI.create('button', {id:'collection-properties-delete',text:'🗑',parent:content});
+      const deleteButton = UI.create('button', {id:'collection-properties-delete',className: 'button',html:'<img src="icons/trash-2.svg" alt="Delete" class="icon">',parent:content});
       EL.add(deleteButton, 'click', () => {
         if (c.isOwner) {
           this.deleteCollection_(c.collection).then(() => close());
@@ -2381,7 +2383,7 @@ class UI {
     const membersDiv = UI.create('div', {id:'collection-properties-members', className:'sharing-setting', parent:content});
     membersDiv.style.display = c.isShared ? '' : 'none';
 
-    const applyButton = UI.create('button', {id:'collection-properties-apply-button', text:_T('no-changes'), disabled: true, parent:content});
+    const applyButton = UI.create('button', {id:'collection-properties-apply-button', className: 'button', text:_T('no-changes'), disabled: true, parent:content});
     EL.add(applyButton, 'click', applyChanges);
 
     const deleteMember = i => {
@@ -2407,7 +2409,7 @@ class UI {
 
         const input = UI.create('input', {id:'collection-properties-members-input', type:'search', placeholder:_T('contact-email'), list:'collection-properties-members-contacts', parent:membersDiv});
 
-        const addButton = UI.create('button', {id:'collection-properties-members-add-button', text:_T('add-member'), parent:membersDiv});
+        const addButton = UI.create('button', {id:'collection-properties-members-add-button', className: 'button', text:_T('add-member'), parent:membersDiv});
         const addFunc = () => {
           const c = contacts.find(e => e.email === input.value);
           if (c) {
@@ -2453,7 +2455,7 @@ class UI {
       for (let i = 0; i < members.length; i++) {
         const div = UI.create('div', {parent:membersDiv});
         if (c.isOwner) {
-          const del = UI.create('button', {text:'✖', parent:div});
+          const del = UI.create('button', {className: 'button', html:'<img src="icons/x.svg" alt="Delete" class="icon">', parent:div});
           del.style.cursor = 'pointer';
           EL.add(del, 'click', () => deleteMember(i));
         }
@@ -2611,7 +2613,7 @@ class UI {
         UI.create('span', {text:_T('name:', f.name), parent:div});
         UI.create('span', {text:_T('size:', this.formatSize_(f.size)), parent:div});
         const errSpan = UI.create('span', {text:_T('status:', '...'), parent:div});
-        const removeButton = UI.create('button', {className:'upload-item-remove-button', disabled:true, text:_T('remove'), parent:div});
+        const removeButton = UI.create('button', {className:'upload-item-remove-button button', disabled:true, text:_T('remove'), parent:div});
         EL.add(removeButton, 'click', () => {
           files = files.filter(f => f.elem !== elem);
           processFiles([]);
@@ -2643,7 +2645,7 @@ class UI {
       const list = document.querySelector('#upload-file-list');
       UI.clearElement_(list);
       if (files.length > 0) {
-        const uploadButton = UI.create('button', {className:'upload-file-list-upload-button', text:_T('upload'), disabled:true, parent:list});
+        const uploadButton = UI.create('button', {className:'upload-file-list-upload-button button', text:_T('upload'), disabled:true, parent:list});
         EL.add(uploadButton, 'click', () => {
           let toUpload = [];
           for (let i = 0; i < files.length; i++) {
@@ -2910,7 +2912,7 @@ class UI {
       form.querySelectorAll('.hide-no-mfa').forEach(e => e.style.display = mfa.checked ? '' : 'none');
       onchange();
     });
-    const testButton = UI.create('button', {id:'profile-form-test-mfa', className:'hide-no-mfa', text:_T('test'), parent:mfaDiv});
+    const testButton = UI.create('button', {id:'profile-form-test-mfa', className:'hide-no-mfa button', text:_T('test'), parent:mfaDiv});
     EL.add(testButton, 'click', () => {
       testButton.disabled = true;
       this.#main.sendRPC('mfaCheck', passkey.checked).finally(() => {
@@ -2934,7 +2936,7 @@ class UI {
           const image = new Image();
           image.src = img;
           otpDiv.appendChild(image);
-          const keyDiv = UI.create('div', {id:'profile-form-otp-key', text:'KEY: ' + key, parent:otpDiv});
+          const keyDiv = UI.create('div', {id:'profile-form-otp-key', text:_T('otp-key-label') + key, parent:otpDiv});
           const code = UI.create('input', {id:'profile-form-otp-code', type:'text', placeholder:_T('enter-code'), parent:otpDiv});
           EL.add(code, 'keydown', onchange);
           EL.add(code, 'change', onchange);
@@ -2962,7 +2964,7 @@ class UI {
     UI.create('label', {className:'hide-no-mfa', forHtml:'profile-form-add-security-key-button', text:_T('security-keys:'), parent:form});
     const skDiv = UI.create('div', {id:'profile-form-security-keys-div', className:'hide-no-mfa', parent:form});
 
-    const addSkButton = UI.create('button', {id:'profile-form-add-security-key-button', text:passkey.checked ? _T('add-passkey') : _T('add-security-key'), parent:skDiv});
+    const addSkButton = UI.create('button', {id:'profile-form-add-security-key-button', className: 'button', text:passkey.checked ? _T('add-passkey') : _T('add-security-key'), parent:skDiv});
     EL.add(addSkButton, 'click', () => {
       addSkButton.disabled = true;
       this.getCurrentPassword()
@@ -2991,7 +2993,7 @@ class UI {
           EL.add(input, 'change', onchange);
           EL.add(input, 'keydown', onchange);
           let t = UI.create('div', {text:(new Date(k.createdAt)).toLocaleDateString(Lang.current, {year: 'numeric', month: 'short', day: 'numeric'}), parent:skList});
-          let del = UI.create('button', {text:'✖', parent:skList});
+          let del = UI.create('button', {className: 'button', html:'<img src="icons/x.svg" alt="Delete" class="icon">', parent:skList});
           del.style.cursor = 'pointer';
           EL.add(del, 'click', () => {
             keyList[k.id].deleted = !keyList[k.id].deleted;
@@ -3007,7 +3009,7 @@ class UI {
     };
     updateKeyList();
 
-    const button = UI.create('button', {id:'profile-form-button', text:_T('no-changes'), disabled:true, parent:form});
+    const button = UI.create('button', {id:'profile-form-button', className: 'button', text:_T('no-changes'), disabled:true, parent:form});
     EL.add(button, 'click', async () => {
       if ((newPass.value !== '' || newPass2.value !== '') && newPass.value !== newPass2.value) {
         this.popupMessage(_T('new-pass-doesnt-match'));
@@ -3080,7 +3082,7 @@ class UI {
 
     UI.create('div', {html:'<hr>' + _T('delete-warning'), parent:content});
 
-    const delButton = UI.create('button', {id:'profile-form-delete-button', text:_T('delete-account'), parent:content});
+    const delButton = UI.create('button', {id:'profile-form-delete-button', className: 'button', text:_T('delete-account'), parent:content});
     EL.add(delButton, 'click', () => {
       email.disabled = true;
       newPass.disabled = true;
@@ -3115,7 +3117,7 @@ class UI {
     const warning = UI.create('div', {id:'backup-phrase-warning', className:'warning', html:_T('key-backup-warning'), parent:content});
     const phrase = UI.create('div', {id:'backup-phrase-value', parent:content});
 
-    const button = UI.create('button', {id:'backup-phrase-show-button', text:_T('show-backup-phrase'), parent:content});
+    const button = UI.create('button', {id:'backup-phrase-show-button', className: 'button', text:_T('show-backup-phrase'), parent:content});
     EL.add(button, 'click', () => {
       if (phrase.textContent === '') {
         button.disabled = true;
@@ -3343,7 +3345,7 @@ class UI {
     };
 
     const defQuotaDiv = UI.create('div', {id:'admin-console-default-quota-div', parent:content});
-    UI.create('label', {htmlFor:'admin-console-default-quota-value', text:'Default quota:', parent:defQuotaDiv});
+    UI.create('label', {htmlFor:'admin-console-default-quota-value', text:_T('default-quota'), parent:defQuotaDiv});
     const defQuotaValue = UI.create('input', {id:'admin-console-default-quota-value', type:'number', size:5, value:data.defaultQuota, parent:defQuotaDiv});
     EL.add(defQuotaValue, 'change', () => {
       const v = parseInt(defQuotaValue.value);
@@ -3466,7 +3468,7 @@ class UI {
 
     const table = UI.create('div', {id:'admin-console-table', parent:content});
 
-    const saveButton = UI.create('button', {id:'admin-console-save-button', text:_T('no-changes'), disabled:true, parent:content});
+    const saveButton = UI.create('button', {id:'admin-console-save-button', className: 'button', text:_T('no-changes'), disabled:true, parent:content});
     EL.add(saveButton, 'click', () => {
       const c = changes();
       content.querySelectorAll('input,select').forEach(elem => {

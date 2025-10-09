@@ -2,7 +2,8 @@
   "LANG": "Français (Canada)",
   "direction": "ltr",
   "login": "Se connecter",
-  "form-email": "Courriel :",
+  "form-email": "Courriel:",
   "email": "Courriel",
-  "contact-email": "Courriel du contact"
+  "contact-email": "Courriel du contact",
+  "server-info-email-updated": "Courriel mis à jour"
 }
